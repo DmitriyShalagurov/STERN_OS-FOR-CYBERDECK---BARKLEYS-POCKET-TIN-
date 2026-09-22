@@ -1,6 +1,6 @@
 #include "bmp.h"
 #include <TFT_eSPI.h>
-#include <SD.h>
+#include "hal/storage_hal.h"
 #include "keypad.h"
 #include "status_bar.h"
 #include "file_browser.h"
@@ -49,7 +49,7 @@ typedef struct {
 
 // Вспомогательная функция для отображения одного BMP-файла
 static bool displayBMPFile(const char* filename) {
-    File file = SD.open(filename);
+    File file = Storage.openFile(filename);
     if (!file) return false;
 
     BMPFileHeader fileHeader;

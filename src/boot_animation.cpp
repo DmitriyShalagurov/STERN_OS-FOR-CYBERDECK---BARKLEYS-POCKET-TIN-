@@ -55,12 +55,21 @@ void showBootAnimation() {
         // Смещаем блок вверх на 15 пикселей
         int y = (tft.height() - totalHeight) / 2 - 8;
 
-        for (int i = 0; i < lines; i++) {
-            int x = (tft.width() - tft.textWidth(banner[i])) / 2;
-            tft.setCursor(x, y);
+        if (tft.width() >= 280) {
+            for (int i = 0; i < lines; i++) {
+                int x = (tft.width() - tft.textWidth(banner[i])) / 2;
+                if (x < 0) x = 0;
+                tft.setCursor(x, y);
+                tft.setTextColor(color, TFT_BLACK);
+                tft.print(banner[i]);
+                y += lineHeight;
+            }
+        } else {
+            tft.setTextSize(2);
+            tft.setCursor((tft.width() - tft.textWidth("STERN OS")) / 2, (tft.height() - 20) / 2);
             tft.setTextColor(color, TFT_BLACK);
-            tft.print(banner[i]);
-            y += lineHeight;
+            tft.print("STERN OS");
+            tft.setTextSize(1);
         }
 
         delay(30);

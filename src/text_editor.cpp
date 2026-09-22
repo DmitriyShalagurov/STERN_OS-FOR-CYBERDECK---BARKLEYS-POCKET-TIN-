@@ -1,6 +1,6 @@
 #include "text_editor.h"
 #include <TFT_eSPI.h>
-#include <SD.h>
+#include "hal/storage_hal.h"
 #include "keypad.h"
 #include "gui_settings.h"
 
@@ -188,12 +188,12 @@ void TextEditor::enterEditMode() {
 bool TextEditor::confirmExit() {
     if (!modified) return true;
 
-    tft.fillRect(0, 180, 320, 60, TFT_BLACK);
+    tft.fillRect(0, tft.height() - 60, tft.width(), 60, TFT_BLACK);
     tft.setTextColor(globalTextColor, TFT_BLACK);
     tft.setTextSize(1);
-    tft.setCursor(5, 190);
+    tft.setCursor(5, tft.height() - 50);
     tft.print("Save changes? (Y/N/C)");
-    tft.setCursor(5, 205);
+    tft.setCursor(5, tft.height() - 35);
     tft.print("Y=Yes   N=No   C=Cancel");
 
     while (true) {
@@ -218,8 +218,8 @@ bool TextEditor::confirmExit() {
 }
 
 void TextEditor::saveCurrentFile() {
-    if (!sdCardOK) {
-        terminalPrint("SD card not mounted!");
+    if (!Storage.isSdMounted() && !Storage.isFlashMounted()) {
+        terminalPrint("Storage not mounted!");
         drawTerminal();
         return;
     }
@@ -233,13 +233,13 @@ void TextEditor::saveCurrentFile() {
 void TextEditor::startFilenameInput() {
     filenameInputMode = true;
     filenameInput = "";
-    tft.fillRect(0, 180, 320, 60, TFT_BLACK);
+    tft.fillRect(0, tft.height() - 60, tft.width(), 60, TFT_BLACK);
     tft.setTextColor(globalTextColor, TFT_BLACK);
     tft.setTextSize(1);
-    tft.setCursor(5, 190);
+    tft.setCursor(5, tft.height() - 50);
     tft.print("Enter filename:");
-    tft.setCursor(5, 205);
-    tft.print("ENTER=Save ESC=Cancel BACK=Del file ANGLE=Backspace");
+    tft.setCursor(5, tft.height() - 35);
+    tft.print("ENTER=Save ESC=Cancel");
     tft.fillRect(5, 220, 310, 12, TFT_BLACK);
     tft.setCursor(5, 220);
     tft.print(filenameInput);
@@ -327,14 +327,15 @@ void TextEditor::renderCursor() {
 }
 
 void TextEditor::clearArea() {
-    tft.fillRect(0, TERMINAL_START_Y, 320, 240 - TERMINAL_START_Y, TFT_BLACK);
+    tft.fillRect(0, TERMINAL_START_Y, tft.width(), tft.height() - TERMINAL_START_Y, TFT_BLACK);
 }
 
 void TextEditor::drawStatusBarEditor() {
-    tft.fillRect(0, 222, 320, 12, TFT_BLACK);
+    int screenH = tft.height();
+    tft.fillRect(0, screenH - 18, tft.width(), 18, TFT_BLACK);
     tft.setTextColor(globalTextColor, TFT_BLACK);
     tft.setTextSize(1);
-    tft.setCursor(LEFT_MARGIN, 222);   // <-- исправлено
+    tft.setCursor(LEFT_MARGIN, screenH - 14);   // <-- исправлено
     tft.print("Ln:");
     tft.print(cursorRow + 1);
     tft.print(" Col:");
@@ -407,11 +408,11 @@ void TextEditor::loadFile(String filename) {
     editMode = false;
     modified = false;
 
-    if (!SD.exists(filename)) {
+    if (!Storage.exists(filename)) {
         lines.push_back("");
         editMode = true;
     } else {
-        File file = SD.open(filename, FILE_READ);
+        File file = Storage.openFile(filename, FILE_READ);
         if (!file) {
             lines.push_back("Failed to open file");
         } else {
@@ -433,29 +434,20 @@ void TextEditor::loadFile(String filename) {
 }
 
 String TextEditor::generateDefaultFilename() {
-    if (!sdCardOK) return "/note_1.txt";
-
     int maxNum = 0;
-    File root = SD.open("/");
-    if (!root) return "/note_1.txt";
-
-    File file = root.openNextFile();
-    while (file) {
-        String name = file.name();
-        if (!file.isDirectory() && name.endsWith(".txt")) {
-            if (name.startsWith("/")) name = name.substring(1);
-            if (name.startsWith("note_")) {
-                int dotIndex = name.indexOf('.');
-                if (dotIndex > 5) {
-                    String numStr = name.substring(5, dotIndex);
-                    int num = numStr.toInt();
-                    if (num > maxNum) maxNum = num;
-                }
+    std::vector<String> files = Storage.listFiles("/", ".txt");
+    for (const auto& name : files) {
+        String base = name;
+        if (base.startsWith("/")) base = base.substring(1);
+        if (base.startsWith("note_")) {
+            int dotIndex = base.indexOf('.');
+            if (dotIndex > 5) {
+                String numStr = base.substring(5, dotIndex);
+                int num = numStr.toInt();
+                if (num > maxNum) maxNum = num;
             }
         }
-        file = root.openNextFile();
     }
-    root.close();
 
     char buf[32];
     sprintf(buf, "/note_%d.txt", maxNum + 1);
@@ -463,12 +455,12 @@ String TextEditor::generateDefaultFilename() {
 }
 
 void TextEditor::saveToSD(String filename) {
-    if (!sdCardOK) {
-        terminalPrint("SD card not mounted!");
+    if (!Storage.isSdMounted() && !Storage.isFlashMounted()) {
+        terminalPrint("No storage mounted!");
         drawTerminal();
         return;
     }
-    File file = SD.open(filename, FILE_WRITE);
+    File file = Storage.openFile(filename, FILE_WRITE);
     if (!file) {
         terminalPrint("Failed to open file for writing");
         drawTerminal();
@@ -482,9 +474,10 @@ void TextEditor::saveToSD(String filename) {
     modified = false;
     terminalPrint("File saved: " + filename);
     drawTerminal();
-    tft.fillRect(0, 220, 320, 10, TFT_BLACK);
+    int screenH = tft.height();
+    tft.fillRect(0, screenH - 20, tft.width(), 10, TFT_BLACK);
     tft.setTextColor(globalTextColor, TFT_BLACK);
-    tft.setCursor(LEFT_MARGIN, 220);   // <-- исправлено
+    tft.setCursor(LEFT_MARGIN, screenH - 20);
     tft.print("Saved!");
     delay(500);
     render();

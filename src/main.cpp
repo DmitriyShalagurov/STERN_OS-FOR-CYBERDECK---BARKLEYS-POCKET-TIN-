@@ -2,13 +2,20 @@
 #include <EEPROM.h>
 #include <Wire.h>
 #include <vector>
-#include "game_of_life.h"
 #include <Adafruit_GFX.h>
-#include <SD.h>
+
+#include "hardware_config.h"
+#include "display_config.h"
+#include "hal/storage_hal.h"
+#include "ui/ui_list.h"
+#include "ui/desktop.h"
+#include "emulators/emulator_manager.h"
+#include "shell/linux_shell.h"
+
+#include "game_of_life.h"
 #include "dino_game.h"
 #include "text_editor.h"
 #include "keypad.h"
-#include "nes_emulator.h"
 #include "boot_animation.h"
 #include "terminal_manager.h"
 #include "status_bar.h"
@@ -18,25 +25,16 @@
 #include "RAW.h"
 #include "bmp.h"
 
-// ========== Определения пинов SD ==========
-#define SD_CS   27
-#define SD_MISO 26
-#define SD_MOSI 13
-#define SD_SCK  14
-
 // ========== Глобальные объекты ==========
 TFT_eSPI tft;
 TextEditor textEditor;
 
 // ========== Глобальные флаги ==========
-bool nesActive = false;
 bool sdCardOK = false;
 bool keypadOK = false;
 bool editorActive = false;
 bool editorFromBrowser = false;
-extern bool gameRunning;
-
-extern void startNESGame(String romPath);
+bool gameRunning = false;
 
 // Прототип
 void processCommand(String cmd);
@@ -44,7 +42,7 @@ void processCommand(String cmd);
 // -------------------------------------------------------------------
 void setup() {
   Serial.begin(115200);
-  Serial.println("Starting SternOS with TCA8418");
+  Serial.println("Starting SternOS on " BOARD_NAME);
 
   EEPROM.begin(128);
   loadGuiSettings();
@@ -62,13 +60,15 @@ void setup() {
   sprintf(oldTimeStr, "%02d:%02d:%02d", currentHour, currentMinute, currentSecond);
   wifiConnected = false;
 
+  Shell.begin();
+  terminalInitInput();
+
   drawStatusBar();
   terminalClear();
-  terminalPrint("SternOS v1.0");
-  terminalPrint("WiFi: Disabled");
-  terminalPrint("Time: local counter");
-  terminalPrint("");
-  terminalPrint("Type 'help' for commands");
+  terminalPrint("SternOS v2.0 Modular Linux Cyberdeck");
+  terminalPrint("Hardware: " BOARD_NAME);
+  terminalPrint("Type 'help' or 'man' for POSIX / Linux tools");
+  terminalPrint("Type 'emu' for Games | 'startx' or ESC for Desktop");
   drawTerminal();
 
   keypadOK = Keypad.begin();
@@ -85,31 +85,33 @@ void setup() {
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(0, 0);
-    display.println("SternOS");
+    display.println("SternOS v2.0");
     display.display();
-    delay(500);
+    delay(400);
   } else {
-    terminalPrint("OLED not detected!");
+    terminalPrint("OLED: not detected");
     drawTerminal();
   }
 
-  SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
-  if (!SD.begin(SD_CS, SPI, 4000000)) {
-    Serial.println("SD Card initialization failed!");
-    sdCardOK = false;
-    terminalPrint("SD: not found");
-    drawTerminal();
-  } else {
-    sdCardOK = true;
+  // Storage HAL initialisieren (SD-Karte und internes SPIFFS/LittleFS)
+  Storage.begin();
+  sdCardOK = Storage.isSdMounted();
+  if (sdCardOK) {
     Serial.println("SD Card ready.");
-    terminalPrint("SD: mounted");
-    drawTerminal();
-  }
+    terminalPrint("Storage: SD Card mounted");
+  } else if (Storage.isFlashMounted()) {
+    terminalPrint("Storage: Internal Flash ready (No SD)");
+  } else {
+  drawTerminal();
+  delay(300);
+
+  // Desktop-Umgebung automatisch beim Systemstart laden
+  openDesktop();
 }
 
 // -------------------------------------------------------------------
 void loop() {
-  if (nesActive) {
+  if (gameRunning) {
     delay(1);
     return;
   }
@@ -162,27 +164,15 @@ void loop() {
         case KEY_ENTER: {
           if (fileList.size() > 0 && selectedIndex < (int)fileList.size()) {
             String filename = fileList[selectedIndex];
-            if (filename.endsWith(".nes")) {
+            String lower = filename;
+            lower.toLowerCase();
+
+            // Automatische Erkennung und Start für alle Emulatoren (.nes, .gb, .gbc, .ch8)
+            if (lower.endsWith(".nes") || lower.endsWith(".gb") || lower.endsWith(".gbc") || lower.endsWith(".ch8")) {
               fileBrowserActive = false;
               closeFileBrowser();
-              terminalPrint("Starting NES: " + filename);
-              drawTerminal();
-              if (oledOK) {
-                display.clearDisplay();
-                display.setTextColor(SSD1306_WHITE);
-                display.setTextSize(1);
-                display.setCursor(0, 12);
-                display.print("LOADING NES...");
-                display.display();
-              }
-              nesActive = true;
-              startNESGame(filename);
-              nesActive = false;
-              if (oledOK) drawStandardOled();
-              terminalPrint("NES stopped.");
-              drawTerminal();
-              drawStatusBar();
-              lastKeyMessage = "NES OFF";
+              EmuManager.launchRom(filename);
+              lastKeyMessage = "Game Exited";
             } else if (filename.endsWith(".txt")) {
               fileBrowserActive = false;
               closeFileBrowser();
@@ -190,11 +180,11 @@ void loop() {
               editorActive = true;
               editorFromBrowser = true;
               lastKeyMessage = "Editing: " + filename;
-            } else if (filename.endsWith(".raw") || filename.endsWith(".RAW")) {
+            } else if (lower.endsWith(".raw")) {
               showRAWImage(filename.c_str());
               drawFileBrowser();
               drawStatusBar();
-            } else if (filename.endsWith(".bmp") || filename.endsWith(".BMP")) {
+            } else if (lower.endsWith(".bmp")) {
               showBMPImage(filename.c_str());
               drawFileBrowser();
               drawStatusBar();
@@ -225,33 +215,38 @@ void loop() {
 
     // ---- Режим терминала ----
     switch (code) {
-      case KEY_ENTER:
-        if (inputLine.length() > 11) {
+      case KEY_ENTER: {
+        String prompt = Shell.getPrompt();
+        if (inputLine.length() > prompt.length()) {
           terminalPrint(inputLine);
-          String cmdOnly = inputLine.substring(inputLine.indexOf(":> ") + 3);
+          String cmdOnly = inputLine.substring(prompt.length());
           processCommand(cmdOnly);
-          inputLine = "barkleys_pc:> ";
+          inputLine = Shell.getPrompt();
           if (!fileBrowserActive && !editorActive) {
             drawTerminal();
           }
         } else {
-          terminalPrint("");
+          terminalPrint(inputLine);
+          inputLine = Shell.getPrompt();
           drawTerminal();
         }
         break;
-      case KEY_BACK:
-        if (inputLine.length() > 13) {
+      }
+      case KEY_BACK: {
+        String prompt = Shell.getPrompt();
+        if (inputLine.length() > prompt.length()) {
           inputLine.remove(inputLine.length() - 1);
           drawTerminal();
         }
         break;
+      }
       case KEY_ESC:
+        openDesktop();
         break;
       default: {
         char ch = Keypad.getChar();
         if (ch != 0) {
           inputLine += ch;
-          // --- ГРУППИРОВКА ДЛЯ УСТРАНЕНИЯ МЕРЦАНИЯ ---
           tft.startWrite();
           drawTerminal();
           tft.endWrite();
@@ -299,13 +294,37 @@ void loop() {
 // -------------------------------------------------------------------
 void processCommand(String cmd) {
   cmd.trim();
-  if (cmd == "txt") {
+  if (cmd.length() == 0) return;
+
+  // 1. Zuerst native Linux / POSIX Shell-Befehle prüfen
+  // (cd, pwd, ls, cat, touch, mkdir, rm, cp, mv, grep, head, df, echo, uname, uptime, free, ps, ifconfig, scan, wifi, ping, wget, curl, sh)
+  if (Shell.execute(cmd)) {
+    return;
+  }
+
+  // 2. STERN OS Anwendungen & Emulatoren
+  if (cmd == "exit" || cmd == "desktop" || cmd == "startx" || cmd == "gui") {
+    openDesktop();
+    return;
+  } else if (cmd == "txt" || cmd == "editor" || cmd == "nano") {
     terminalPrint("Starting Text Editor...");
     drawTerminal();
     textEditor.init();
     editorActive = true;
     editorFromBrowser = false;
     lastKeyMessage = "Editor ON";
+  } else if (cmd == "emu" || cmd == "games") {
+    EmuManager.showEmulatorMenu();
+  } else if (cmd == "nes") {
+    EmuManager.showConsoleMenu(&EmuManager.getNesCore());
+  } else if (cmd == "gb") {
+    EmuManager.showConsoleMenu(&EmuManager.getGbCore());
+  } else if (cmd == "chip8") {
+    EmuManager.showConsoleMenu(&EmuManager.getChip8Core());
+  } else if (cmd == "browser" || cmd == "files") {
+    terminalPrint("Opening GUI file browser...");
+    drawTerminal();
+    openFileBrowser();
   } else if (cmd == "gameoflive") {
     terminalPrint("Starting Game of Life...");
     drawTerminal();
@@ -322,76 +341,55 @@ void processCommand(String cmd) {
     drawTerminal();
     drawStatusBar();
     lastKeyMessage = "Dino OFF";
-  } else if (cmd == "ls") {
-    terminalPrint("Opening file browser...");
-    drawTerminal();
-    openFileBrowser();
   } else if (cmd == "clear") {
     terminalClear();
     drawTerminal();
   } else if (cmd == "help") {
-    terminalPrint("        GAMES");
-    terminalPrint("  gameoflive - Run Game of Life");
-    terminalPrint("  dino       - Run Dino Game");
-    terminalPrint("  nes        - Run NES Emulator");
-    terminalPrint("");
-    terminalPrint("      BASIC COMMANDS");
-    terminalPrint("  txt        - Open text editor");
-    terminalPrint("  ls         - List files on SD card");
-    terminalPrint("  clear      - Clear terminal history");
-    terminalPrint("  status     - Show system status");
-    terminalPrint("  info       - Show hardware info");
-    terminalPrint("  gui        - GUI settings");
-    terminalPrint("  help       - Show this help");
+    terminalPrint("=== STERN OS LINUX CYBERDECK ===");
+    terminalPrint("POSIX / LINUX CLI:");
+    terminalPrint("  cd <dir>, pwd, ls [-l], cat <file>, touch <file>");
+    terminalPrint("  mkdir <dir>, rm <file>, cp <src> <dst>, mv <src> <dst>");
+    terminalPrint("  grep <pat> <file>, head <file>, df -h, echo txt > file");
+    terminalPrint("SYSTEM:");
+    terminalPrint("  uname -a, uptime, free, ps, whoami, date, reboot");
+    terminalPrint("NETWORK:");
+    terminalPrint("  ifconfig, scan, wifi connect <ssid> <pass>, ping <host>");
+    terminalPrint("  wget <url> [file], curl <url>");
+    terminalPrint("EMULATORS & APPS:");
+    terminalPrint("  emu, nes, gb, chip8, dino, gameoflive, txt, browser, gui");
     drawTerminal();
   } else if (cmd == "status") {
     terminalPrint("=== System Status ===");
     terminalPrint("  Time: " + String(currentHour) + ":" + String(currentMinute) + ":" + String(currentSecond));
-    terminalPrint("  SD Card: " + String(sdCardOK ? "Mounted" : "Not found"));
+    terminalPrint("  SD Card: " + String(Storage.isSdMounted() ? "Mounted" : "Not found"));
+    terminalPrint("  Flash FS: " + String(Storage.isFlashMounted() ? "Mounted" : "Not found"));
     terminalPrint("  OLED: " + String(oledOK ? "OK" : "Error"));
     terminalPrint("  Keyboard: " + String(keypadOK ? "Connected" : "Not found"));
     terminalPrint("  WiFi: " + String(wifiConnected ? "Enabled" : "Disabled"));
-    terminalPrint("  Bluetooth: Disabled (not implemented)");
-    terminalPrint("  Game running: " + String(gameRunning ? "Yes" : "No"));
-    terminalPrint("  Editor active: " + String(editorActive ? "Yes" : "No"));
     drawTerminal();
   } else if (cmd == "info") {
     terminalPrint("=== Hardware Info ===");
-    terminalPrint("Chip: " + String(ESP.getChipModel()));
-    terminalPrint("Cores: " + String(ESP.getChipCores()));
+    terminalPrint("Platform: " BOARD_NAME);
+    terminalPrint("Display: " DISPLAY_DRIVER_NAME);
+    terminalPrint("Res: " + String(tft.width()) + "x" + String(tft.height()));
+    terminalPrint("Chip: " + String(ESP.getChipModel()) + " (" + String(ESP.getChipCores()) + " Cores)");
     terminalPrint("CPU Freq: " + String(ESP.getCpuFreqMHz()) + " MHz");
-    terminalPrint("Flash size: " + String(ESP.getFlashChipSize()) + " bytes (" + String(ESP.getFlashChipSize() / (1024.0*1024.0), 2) + " MB)");
-    terminalPrint("Heap total: " + String(ESP.getHeapSize()) + " bytes (" + String(ESP.getHeapSize()/1024.0, 2) + " KB)");
-    terminalPrint("Heap free: " + String(ESP.getFreeHeap()) + " bytes (" + String(ESP.getFreeHeap()/1024.0, 2) + " KB)");
-    if (psramFound()) {
-        terminalPrint("PSRAM total: " + String(ESP.getPsramSize()) + " bytes (" + String(ESP.getPsramSize()/(1024.0*1024.0), 2) + " MB)");
-        terminalPrint("PSRAM free: " + String(ESP.getFreePsram()) + " bytes (" + String(ESP.getFreePsram()/(1024.0*1024.0), 2) + " MB)");
+    terminalPrint("Flash size: " + String(ESP.getFlashChipSize() / (1024.0*1024.0), 1) + " MB");
+    terminalPrint("Free Heap: " + String(ESP.getFreeHeap() / 1024.0, 1) + " KB");
+    if (hasPSRAM()) {
+        terminalPrint("PSRAM: " + String(ESP.getPsramSize() / (1024.0*1024.0), 1) + " MB (Free: " + String(ESP.getFreePsram() / (1024.0*1024.0), 1) + " MB)");
     } else {
-        terminalPrint("PSRAM: not found");
+        terminalPrint("PSRAM: Not installed");
+    }
+    uint32_t totKB = 0, usedKB = 0;
+    Storage.getStorageInfo(totKB, usedKB);
+    if (totKB > 0) {
+        terminalPrint("Storage: " + String(usedKB / 1024.0, 1) + "/" + String(totKB / 1024.0, 1) + " MB used");
     }
     terminalPrint("=== End Info ===");
     drawTerminal();
   } else if (cmd == "gui") {
     guiSettingsMenu();
-  } else if (cmd == "nes") {
-    terminalPrint("Starting NES Emulator...");
-    drawTerminal();
-    if (oledOK) {
-      display.clearDisplay();
-      display.setTextColor(SSD1306_WHITE);
-      display.setTextSize(1);
-      display.setCursor(0, 12);
-      display.print("EMULATOR_.NES_TRUE");
-      display.display();
-    }
-    nesActive = true;
-    runNES();
-    nesActive = false;
-    if (oledOK) drawStandardOled();
-    terminalPrint("NES Emulator finished.");
-    drawTerminal();
-    drawStatusBar();
-    lastKeyMessage = "NES OFF";
   } else {
     terminalPrint("Unknown command: " + cmd);
     drawTerminal();

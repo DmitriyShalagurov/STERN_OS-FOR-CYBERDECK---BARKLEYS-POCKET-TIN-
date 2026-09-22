@@ -51,7 +51,7 @@ void saveGuiSettings() {
 
 // ===== РИСОВАНИЕ РАМКИ =====
 void drawBorder() {
-  tft.drawRect(0, 0, 320, 240, tft.color565(144, 97, 0));
+  tft.drawRect(0, 0, tft.width(), tft.height(), tft.color565(144, 97, 0));
 }
 
 // ===== Ввод цвета =====
@@ -159,10 +159,10 @@ void guiSettingsMenu() {
     for (int i = 0; i < menuCount; i++) {
       int y = startY + i * itemHeight;
       if (i == menuIndex) {
-        tft.fillRect(0, y, 320, itemHeight, TFT_DARKGREY);
+        tft.fillRect(0, y, tft.width(), itemHeight, TFT_DARKGREY);
         tft.setTextColor(TFT_WHITE, TFT_DARKGREY);
       } else {
-        tft.fillRect(0, y, 320, itemHeight, TFT_BLACK);
+        tft.fillRect(0, y, tft.width(), itemHeight, TFT_BLACK);
         tft.setTextColor(TFT_WHITE, TFT_BLACK);
       }
       tft.setTextSize(1);

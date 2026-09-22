@@ -1,5 +1,5 @@
 #include "status_bar.h"
-#include "gui_settings.h"    // <-- ДОБАВЛЕНО
+#include "gui_settings.h"
 #include <TFT_eSPI.h>
 #include <string.h>
 
@@ -12,12 +12,13 @@ bool wifiConnected = false;
 int timeStartX = 0, timeWidth = 0, wifiIconX = 0;
 
 void drawStatusBar() {
-  tft.fillRect(0, 0, 320, 20, TFT_BLACK);
+  int screenW = tft.width();
+  tft.fillRect(0, 0, screenW, 20, TFT_BLACK);
   tft.setTextColor(globalTextColor, globalTextBgColor);
   tft.setTextSize(globalTextSize);
 
   timeWidth = tft.textWidth("00:00:00");
-  timeStartX = 320 - timeWidth - 10;
+  timeStartX = screenW - timeWidth - 10;
   wifiIconX = timeStartX - 20 - 20;
 
   sprintf(oldTimeStr, "%02d:%02d:%02d", currentHour, currentMinute, currentSecond);
@@ -25,7 +26,7 @@ void drawStatusBar() {
   tft.print(oldTimeStr);
   updateWifiIcon();
 
-  drawBorder();   // <-- РАМКА ПОВЕРХ
+  drawBorder();
 }
 
 void updateTimeOnStatusBar() {
@@ -40,7 +41,7 @@ void updateTimeOnStatusBar() {
   tft.print(newTimeStr);
   strcpy(oldTimeStr, newTimeStr);
 
-  drawBorder();   // <-- РАМКА ПОСЛЕ ОБНОВЛЕНИЯ ВРЕМЕНИ
+  drawBorder();
 }
 
 void updateWifiIcon() {
@@ -61,7 +62,7 @@ void updateWifiIcon() {
     tft.fillRect(iconX+10, iconY+4, 4, 2, TFT_GREEN);
   }
 
-  drawBorder();   // <-- РАМКА ПОСЛЕ ОБНОВЛЕНИЯ ИКОНКИ
+  drawBorder();
 }
 
 void updateTimeDisplay() {

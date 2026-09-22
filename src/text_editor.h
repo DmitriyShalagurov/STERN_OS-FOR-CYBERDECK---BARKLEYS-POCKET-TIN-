@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include <vector>
-#include <SD.h>
+#include <FS.h>
 #include "keypad.h"
 
 class TextEditor {

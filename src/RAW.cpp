@@ -1,6 +1,6 @@
 #include "RAW.h"
 #include <TFT_eSPI.h>
-#include <SD.h>
+#include "hal/storage_hal.h"
 #include "keypad.h"
 #include "status_bar.h"
 #include "file_browser.h"
@@ -22,7 +22,7 @@ static const uint8_t perm[6][3] = {
 
 // Вспомогательная функция для отображения одного RAW-файла
 static bool displayRAWFile(const char* filename) {
-    File file = SD.open(filename);
+    File file = Storage.openFile(filename);
     if (!file) return false;
 
     if (file.size() != 320UL * 240UL * 2UL) {
