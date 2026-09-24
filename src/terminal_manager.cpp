@@ -13,7 +13,7 @@ const int LINE_HEIGHT = 10;
 
 #define LEFT_MARGIN 10
 
-// === НОВЫЙ БАННЕР (без переливания) ===
+// === БАННЕР ===
 const char* BANNER[] = {
     "   ___  ___   ___  __ ____   ______  __  ___  _____",
     "  / _ )/ _ | / _ \\/ //_/ /  / __/\\ \\/ / / _ \\/ ___/",
@@ -41,12 +41,15 @@ void drawTerminal() {
   int lineHeight = tft.fontHeight();
   int bannerHeight = BANNER_LINES * lineHeight;
 
-  // Очищаем область под баннером
-  tft.fillRect(0, TERMINAL_START_Y + bannerHeight, 320, 240 - TERMINAL_START_Y - bannerHeight, TFT_BLACK);
+  // ===== ГЛАВНОЕ ИСПРАВЛЕНИЕ =====
+  // Очищаем ВСЮ область терминала от TERMINAL_START_Y и ниже,
+  // включая область баннера. Иначе после меню/игр на месте баннера
+  // остаются артефакты (куски рамки, полосы курсора меню и т.п.).
+  tft.fillRect(0, TERMINAL_START_Y, 320, 240 - TERMINAL_START_Y, TFT_BLACK);
 
   // ===== БАННЕР – ПРИГЛУШЁННЫЙ ЖЁЛТЫЙ (globalTextColor) =====
   tft.setTextSize(globalTextSize);
-  tft.setTextColor(globalTextColor, TFT_BLACK); // ваш второй цвет
+  tft.setTextColor(globalTextColor, TFT_BLACK);
   int y = TERMINAL_START_Y;
   for (int i = 0; i < BANNER_LINES; i++) {
     tft.setCursor(LEFT_MARGIN, y);

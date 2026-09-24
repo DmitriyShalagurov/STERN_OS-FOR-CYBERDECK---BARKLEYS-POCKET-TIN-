@@ -3,8 +3,8 @@
 #include <string.h>
 
 static const char* keySymbols[KEY_COUNT] = {
-  "",                        // 0: KEY_NONE
-  "",                        // 1: KEY_ESC
+  "",                        // 0:  KEY_NONE
+  "",                        // 1:  KEY_ESC
   "qQ1", "wW2", "eE3", "rR4", "tT5", "yY6", "uU7", "iI8", "oO9", // 2-10
   "",                        // 11: KEY_TAB
   "aA", "sS", "dD", "fF", "gG", "hH", "jJ", "kK", "lL{}", // 12-20
@@ -24,10 +24,11 @@ static const char* keySymbols[KEY_COUNT] = {
   "pP0",                     // 40: KEY_P
   "[]",                      // 41: KEY_BRACKETS
   "?/\\",                    // 42: KEY_QUESTION_SLASH
-  "",                        // 43: KEY_BACK
-  "",                        // 44: KEY_ENTER
-  "$",                       // 45: KEY_DOLLAR
-  "#@"                       // 46: KEY_HASH_AT
+  ".,",                      // 43: KEY_DOT_COMMA  <-- ИСПРАВЛЕНО
+  "",                        // 44: KEY_BACK
+  "",                        // 45: KEY_ENTER
+  "$",                       // 46: KEY_DOLLAR
+  "#@",                      // 47: KEY_HASH_AT
 };
 
 KeypadManager::KeypadManager() : _rows(KEYPAD_ROWS), _cols(KEYPAD_COLS),
@@ -83,7 +84,7 @@ void KeypadManager::initMap() {
   _map[3][9] = KEY_QUOTE;
 
   _map[4][0] = KEY_WIFI_TOGGLE;
-  _map[4][1] = KEY_NONE;
+  _map[4][1] = KEY_MENU;              // <-- ИСПРАВЛЕНО (было KEY_NONE)
   _map[4][2] = KEY_P;
   _map[4][3] = KEY_BRACKETS;
   _map[4][4] = KEY_QUESTION_SLASH;
@@ -100,7 +101,7 @@ void KeypadManager::updateModifiers(KeyCode code, bool pressed) {
     case KEY_CTRL:      _ctrl  = pressed; break;
     case KEY_ALT:       _alt   = pressed; break;
     case KEY_FN:
-      if (pressed) _fn = !_fn;   // переключаем состояние Fn
+      if (pressed) _fn = !_fn;
       break;
     case KEY_CAPS_LOCK:
       if (pressed) _capsLock = !_capsLock;
@@ -110,10 +111,10 @@ void KeypadManager::updateModifiers(KeyCode code, bool pressed) {
 }
 
 int KeypadManager::getSymbolIndex(KeyCode code) {
-  if (_fn)    return 2;   // Fn – цифра/спецсимвол
-  if (_shift) return 1;   // Shift – заглавная
-  if (_ctrl)  return 0;   // Ctrl пока не используется
-  return (_capsLock ? 1 : 0) + (_tapIndex * 2); // 0 или 1 (буква) / 2 (цифра)
+  if (_fn)    return 2;
+  if (_shift) return 1;
+  if (_ctrl)  return 0;
+  return (_capsLock ? 1 : 0) + (_tapIndex * 2);
 }
 
 char KeypadManager::getSymbolForCode(KeyCode code, int index) {
@@ -122,7 +123,7 @@ char KeypadManager::getSymbolForCode(KeyCode code, int index) {
   if (!str || *str == '\0') return 0;
   int len = strlen(str);
   if (len == 0) return 0;
-  if (index >= len) return 0;   // <-- ИСПРАВЛЕНО: если нет символа, ничего не выводим
+  if (index >= len) return 0;
   char ch = str[index];
   if (_capsLock && isalpha(ch)) ch = toupper(ch);
   return ch;
@@ -152,7 +153,6 @@ KeyCode KeypadManager::getKey() {
           unsigned long now = millis();
           bool isMultiTap = false;
 
-          // Multi-tap только для обычных клавиш без модификаторов
           if (!_shift && !_fn && !_ctrl && code != KEY_CAPS_LOCK) {
             if (code == _lastKeyCode && (now - _lastKeyTime) < MULTITAP_TIMEOUT) {
               _tapIndex = (_tapIndex == 0) ? 1 : 0;

@@ -7,12 +7,9 @@
 
 extern TFT_eSPI tft;
 
-// =============================================
-// НАСТРОЙКИ (меняйте их для подбора цветов)
-// =============================================
-#define COLOR_MODE 0   // 0..5 (перестановка каналов)
-#define SWAP_BYTES 1   // 0 = выкл, 1 = вкл (меняет байты местами в 16-битном слове)
-// =============================================
+
+#define COLOR_MODE 0   
+#define SWAP_BYTES 1 
 
 static const uint8_t perm[6][3] = {
     {0,1,2}, // RGB
@@ -47,7 +44,6 @@ typedef struct {
 } BMPInfoHeader;
 #pragma pack(pop)
 
-// Вспомогательная функция для отображения одного BMP-файла
 static bool displayBMPFile(const char* filename) {
     File file = SD.open(filename);
     if (!file) return false;
@@ -108,7 +104,7 @@ bool showBMPImage(const char* filename) {
         return false;
     }
 
-    // Цикл ожидания клавиш с навигацией
+  
     while (true) {
         KeyCode key = Keypad.getKey();
         if (key == KEY_ESC) break;

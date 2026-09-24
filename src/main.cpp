@@ -17,18 +17,19 @@
 #include "gui_settings.h"
 #include "RAW.h"
 #include "bmp.h"
+#include "donat.h"
+#include "oscilloscope.h"
+#include "mouth.h"
+#include "menu.h"
 
-// ========== Определения пинов SD ==========
 #define SD_CS   27
 #define SD_MISO 26
 #define SD_MOSI 13
 #define SD_SCK  14
 
-// ========== Глобальные объекты ==========
 TFT_eSPI tft;
 TextEditor textEditor;
 
-// ========== Глобальные флаги ==========
 bool nesActive = false;
 bool sdCardOK = false;
 bool keypadOK = false;
@@ -38,10 +39,8 @@ extern bool gameRunning;
 
 extern void startNESGame(String romPath);
 
-// Прототип
 void processCommand(String cmd);
 
-// -------------------------------------------------------------------
 void setup() {
   Serial.begin(115200);
   Serial.println("Starting SternOS with TCA8418");
@@ -107,7 +106,6 @@ void setup() {
   }
 }
 
-// -------------------------------------------------------------------
 void loop() {
   if (nesActive) {
     delay(1);
@@ -121,6 +119,10 @@ void loop() {
     drawStandardOled();
   }
 
+  // --- Отложенная перерисовка терминала (убирает мерцание) ---
+  static bool termDirty = false;
+  static unsigned long lastTermRedraw = 0;
+
   KeyCode code = Keypad.getKey();
   if (code != KEY_NONE) {
     if (code == KEY_WIFI_TOGGLE) {
@@ -132,6 +134,23 @@ void loop() {
       lastKeyMessage = wifiConnected ? "WiFi ON" : "WiFi OFF";
       return;
     }
+
+    // ===== Кнопка вызова графического меню =====
+    if (code == KEY_MENU) {
+      static unsigned long lastMenuOpen = 0;
+      if (millis() - lastMenuOpen < 300) return;
+      lastMenuOpen = millis();
+
+      String sel = runMenu();
+      if (sel.length() > 0 && sel != "__no_ram__") {
+        processCommand(sel);
+      } else {
+        drawTerminal();
+        drawStatusBar();
+      }
+      return;
+    }
+    // ==========================================
 
     if (editorActive) {
       bool ctrl = Keypad.isCtrlPressed();
@@ -223,7 +242,6 @@ void loop() {
       return;
     }
 
-    // ---- Режим терминала ----
     switch (code) {
       case KEY_ENTER:
         if (inputLine.length() > 11) {
@@ -239,22 +257,22 @@ void loop() {
           drawTerminal();
         }
         break;
+
       case KEY_BACK:
         if (inputLine.length() > 13) {
           inputLine.remove(inputLine.length() - 1);
-          drawTerminal();
+          termDirty = true;          // <-- отложенная перерисовка
         }
         break;
+
       case KEY_ESC:
         break;
+
       default: {
         char ch = Keypad.getChar();
         if (ch != 0) {
           inputLine += ch;
-          // --- ГРУППИРОВКА ДЛЯ УСТРАНЕНИЯ МЕРЦАНИЯ ---
-          tft.startWrite();
-          drawTerminal();
-          tft.endWrite();
+          termDirty = true;          // <-- отложенная перерисовка
           lastKeyMessage = String(ch);
         }
         break;
@@ -262,7 +280,15 @@ void loop() {
     }
   }
 
-  // Автоповтор для файлового браузера
+  // --- Одна перерисовка не чаще чем раз в 30 мс ---
+  if (termDirty && (millis() - lastTermRedraw >= 30)) {
+    lastTermRedraw = millis();
+    termDirty = false;
+    tft.startWrite();
+    drawTerminal();
+    tft.endWrite();
+  }
+
   if (fileBrowserActive) {
     static unsigned long lastRepeat = 0;
     static bool repeatActive = false;
@@ -296,7 +322,6 @@ void loop() {
   delay(20);
 }
 
-// -------------------------------------------------------------------
 void processCommand(String cmd) {
   cmd.trim();
   if (cmd == "txt") {
@@ -322,6 +347,37 @@ void processCommand(String cmd) {
     drawTerminal();
     drawStatusBar();
     lastKeyMessage = "Dino OFF";
+  } else if (cmd == "donat" || cmd == "donut") {
+    terminalPrint("Starting Donat...");
+    drawTerminal();
+    runDonat();
+    terminalPrint("Donat stopped.");
+    drawTerminal();
+    drawStatusBar();
+    lastKeyMessage = "Donat OFF";
+  } else if (cmd == "osc") {
+    terminalPrint("Starting Oscilloscope...");
+    drawTerminal();
+    runOscilloscope();
+    terminalPrint("Oscilloscope stopped.");
+    drawTerminal();
+    drawStatusBar();
+    lastKeyMessage = "OSC OFF";
+  } else if (cmd == "mouth") {
+    tft.fillScreen(TFT_BLACK);
+    runMouth();
+    terminalPrint("Mouth stopped.");
+    drawTerminal();
+    drawStatusBar();
+    lastKeyMessage = "Mouth OFF";
+  } else if (cmd == "menu" || cmd == "main") {
+    String sel = runMenu();
+    if (sel.length() > 0 && sel != "__no_ram__") {
+      processCommand(sel);
+    } else {
+      drawTerminal();
+      drawStatusBar();
+    }
   } else if (cmd == "ls") {
     terminalPrint("Opening file browser...");
     drawTerminal();
@@ -333,9 +389,13 @@ void processCommand(String cmd) {
     terminalPrint("        GAMES");
     terminalPrint("  gameoflive - Run Game of Life");
     terminalPrint("  dino       - Run Dino Game");
+    terminalPrint("  donat      - Run Donut animation");
     terminalPrint("  nes        - Run NES Emulator");
+    terminalPrint("  osc        - Run Oscilloscope (TFT)");
+    terminalPrint("  mouth      - Mouth on OLED (TFT off)");
     terminalPrint("");
     terminalPrint("      BASIC COMMANDS");
+    terminalPrint("  menu       - Interactive menu");
     terminalPrint("  txt        - Open text editor");
     terminalPrint("  ls         - List files on SD card");
     terminalPrint("  clear      - Clear terminal history");

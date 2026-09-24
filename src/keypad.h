@@ -36,13 +36,15 @@ enum KeyCode {
   KEY_P,
   KEY_BRACKETS,     // [ ]
   KEY_QUESTION_SLASH, // ? / \
-  KEY_DOT_COMMA,    // . ,   <-- ДОБАВЛЕН!
+  KEY_DOT_COMMA,    // . ,
   KEY_BACK,
   KEY_ENTER,
   KEY_DOLLAR,
   KEY_HASH_AT,      // # @
 
-  KEY_COUNT         // обязательно последним! (теперь = 48)
+  KEY_MENU,         // <-- НОВОЕ: кнопка вызова меню (row4, col1)
+
+  KEY_COUNT         // обязательно последним!
 };
 
 class KeypadManager {
@@ -61,7 +63,7 @@ public:
   bool isAltPressed()   const { return _alt; }
   bool isFnPressed()    const { return _fn; }
   bool isCapsLockOn()   const { return _capsLock; }
-  bool isMultiTap()     const { return _isMultiTap; }  // <-- добавлено
+  bool isMultiTap()     const { return _isMultiTap; }
 
 private:
   Adafruit_TCA8418 _keypad;
@@ -76,7 +78,7 @@ private:
   unsigned long _lastKeyTime;
   int _tapIndex;
   char _lastChar;
-  bool _isMultiTap;    // <-- добавлено
+  bool _isMultiTap;
 
   void initMap();
   void updateModifiers(KeyCode code, bool pressed);

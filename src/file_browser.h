@@ -12,6 +12,6 @@ void openFileBrowser();
 void drawFileBrowser();
 void closeFileBrowser();
 void confirmAndDeleteFile();
-void setRawImageJustViewed();   // только эта функция нужна
+void setRawImageJustViewed();   
 
 #endif

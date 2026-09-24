@@ -16,7 +16,7 @@ int selectedIndex = 0;
 
 #define LEFT_MARGIN 10
 
-// Флаг для полной очистки после просмотра изображения
+
 bool rawImageJustViewed = false;
 
 void setRawImageJustViewed() {
@@ -57,26 +57,26 @@ void loadFileList() {
 void openFileBrowser() {
   loadFileList();
   fileBrowserActive = true;
-  // При первом открытии сразу очищаем экран
+ 
   tft.fillScreen(TFT_BLACK);
   drawStatusBar();
   drawBorder();
-  drawFileBrowser(); // теперь drawFileBrowser не будет чистить, только список
+  drawFileBrowser(); 
 }
 
 void drawFileBrowser() {
-  // Если только что было показано RAW-изображение – делаем полную очистку
+
   if (rawImageJustViewed) {
     tft.fillScreen(TFT_BLACK);
     drawStatusBar();
     drawBorder();
-    rawImageJustViewed = false;   // сбрасываем флаг
+    rawImageJustViewed = false;
   }
 
-  // === НАЧАЛО ГРУППИРОВКИ КОМАНД SPI (убирает мерцание) ===
+
   tft.startWrite();
 
-  // Теперь частичная перерисовка списка (без мерцания)
+
   tft.setTextSize(globalTextSize);
 
   int y = TERMINAL_START_Y + 2;
@@ -110,17 +110,16 @@ void drawFileBrowser() {
     y += LINE_HEIGHT;
   }
 
-  // Нижняя подсказка
+
   tft.fillRect(0, 240 - LINE_HEIGHT, 320, LINE_HEIGHT, TFT_BLACK);
   tft.setTextColor(globalTextColor, TFT_BLACK);
   tft.setTextSize(1);
   tft.setCursor(LEFT_MARGIN, 240 - LINE_HEIGHT);
   tft.print("S:X:Move  ENTER:Open  BACK:Delete  ESC:Exit");
 
-  // === КОНЕЦ ГРУППИРОВКИ ===
   tft.endWrite();
 
-  // Рамка рисуется после endWrite
+
   drawBorder();
 }
 
@@ -137,7 +136,7 @@ void confirmAndDeleteFile() {
   String filename = fileList[selectedIndex];
   if (filename.startsWith("[")) return;
 
-  // Рисуем диалог удаления
+
   tft.fillRect(0, 200, 320, 40, TFT_BLACK);
   tft.setTextColor(globalTextColor, TFT_BLACK);
   tft.setTextSize(1);
@@ -151,7 +150,7 @@ void confirmAndDeleteFile() {
     if (key == KEY_NONE) continue;
 
     if (key == KEY_ESC) {
-      // Выход без удаления: очищаем экран и перерисовываем браузер
+
       tft.fillScreen(TFT_BLACK);
       drawStatusBar();
       drawBorder();
@@ -165,14 +164,14 @@ void confirmAndDeleteFile() {
         SD.remove(filename);
       }
       loadFileList();
-      // Полностью очищаем экран перед перерисовкой, чтобы убрать артефакты диалога
+
       tft.fillScreen(TFT_BLACK);
       drawStatusBar();
       drawBorder();
       drawFileBrowser();
       return;
     }
-    // Если нажата другая клавиша (например, N) – игнорируем, остаёмся в диалоге
+
     delay(20);
   }
 }

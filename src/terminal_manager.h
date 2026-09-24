@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include <TFT_eSPI.h>
-#include "gui_settings.h"   // обязательно
+#include "gui_settings.h"   
 
 extern String outputBuffer[20];
 extern int outputCount;
