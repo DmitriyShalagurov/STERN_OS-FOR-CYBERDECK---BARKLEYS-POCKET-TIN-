@@ -51,7 +51,8 @@ The entire project is built from scratch — including the electronics, custom P
 * Bluetooth
 * USB Type-C
 * CH340C USB-to-serial interface
-  The ESP32 is the main processor responsible for running STERN OS and controlling the display, keyboard and peripherals.
+
+The ESP32 is the main processor responsible for running STERN OS and controlling the display, keyboard and peripherals.
 
 ## Custom Keyboard
 
@@ -61,12 +62,14 @@ The keyboard uses a dedicated **TCA8418RTWR — TCA8418** keyboard controller.
 * I²C keyboard controller
 * Custom keyboard matrix
 * Hardware diode per key
-  Each key uses a **1N4148 SOD-323** diode.
+
+Each key uses a **1N4148 SOD-323** diode.
 
 ## Display
 
 The project uses a compact **2.4-inch TFT display** with an SPI interface.
 The display module is based on an **ST7735 / ST7789** controller depending on the exact module revision.
+
 Typical resolution:
 
 * 240 × 320
@@ -78,14 +81,18 @@ The power system is based around a **TPS63020** DC/DC buck-boost converter.
 ### Output
 
 **3.3 V**
+
 The converter provides the regulated 3.3 V supply required by the electronics.
+
 Additional capacitors:
 
 * 470 µF / 10 V bulk capacitor
 * 10 µF 0603 X7R 10 V
 * 100 nF 1206 50 V
-  The main power switch is **SS12D11**.
-  The power switch is placed in series with the battery supply so the entire system can be disconnected from the battery.
+
+The main power switch is **SS12D11**.
+
+The power switch is placed in series with the battery supply so the entire system can be disconnected from the battery.
 
 ## FPC Interface
 
@@ -94,16 +101,18 @@ The project uses a **14-pin FPC connector** with:
 * 0.5 mm pitch
 * 14 contacts
 * 10 cm FPC cable
-  The project uses a specific FPC connector orientation, so the connector type must be selected carefully.
+
+The project uses a specific FPC connector orientation, so the connector type must be selected carefully.
 
 > **Important:** The first FPC connector purchased for the project turned out to be the wrong type/orientation. When reproducing the project, verify the connector orientation and contact direction before ordering.
 > For easier prototyping and testing, a **14-pin FPC/FFC → 2.54 mm adapter** can also be used.
 
 ## PCB
 
-The custom PCB for STERN OS was manufactured by **JLCPCB**.
-The PCB integrates the electronics required by the cyberdeck and is designed around the extremely limited space available inside the Barkleys tin.
+The custom PCB for STERN OS integrates the electronics required by the cyberdeck and is designed around the extremely limited space available inside the Barkleys tin.
+
 PCB production files and source design files will be provided in the `hardware` directory.
+
 ------------------------------------------------------------------------------------------
 
 # Software
@@ -114,9 +123,11 @@ STERN OS is developed using:
 * ESP32
 * PlatformIO
 * Visual Studio Code
-  The project is organized into multiple modules rather than keeping the entire operating system inside one source file.
+
+The project is organized into multiple modules rather than keeping the entire operating system inside one source file.
 
 ---
+
 # Applications
 
 ## Terminal
@@ -145,7 +156,7 @@ An experimental NES emulator running on the ESP32.
 
 ## Settings
 
-## System settings are managed through a dedicated graphical settings interface.
+System settings are managed through a dedicated graphical settings interface.
 
 # Getting Started
 
@@ -162,7 +173,6 @@ Clone the repository:
 ```bash
 git clone https://github.com/DmitriyShalagurov/STERN_OS-FOR-CYBERDECK---BARKLEYS-POCKET-TIN-.git
 ```
-
 
 # Bill of Materials
 
@@ -182,7 +192,6 @@ git clone https://github.com/DmitriyShalagurov/STERN_OS-FOR-CYBERDECK---BARKLEYS
 | FPC Connector        | 14P / 0.5 mm                   |
 | FPC Cable            | 14P / 0.5 mm                   |
 | FPC Adapter          | 14P → 2.54 mm                  |
-| PCB Manufacturer     | JLCPCB                         |
 | Enclosure            | Barkleys tin                   |
 
 ---
@@ -190,6 +199,7 @@ git clone https://github.com/DmitriyShalagurov/STERN_OS-FOR-CYBERDECK---BARKLEYS
 # Design Philosophy
 
 The main challenge of this project is fitting a complete custom cyberdeck into an extremely small enclosure.
+
 The design prioritizes:
 
 * Compact dimensions
@@ -200,7 +210,8 @@ The design prioritizes:
 * Expandability
 * Repairability
 * Easy experimentation
-  The project intentionally uses commonly available components where possible.
+
+The project intentionally uses commonly available components where possible.
 
 ---
 
@@ -252,14 +263,17 @@ Project photos will be added here as development continues.
 # Project Status
 
 **STERN OS is an experimental DIY project and is still under active development.**
+
 Hardware and software may change between revisions.
 The current repository represents the development version of the project and may contain unfinished or experimental features.
+
 -----------------------------------------------------------------------------------------------------------------------------
 
 # Contributing
 
 Suggestions, bug reports, improvements and hardware modifications are welcome.
 If you build your own version of STERN OS, feel free to share your build and modifications.
+
 -------------------------------------------------------------------------------------------
 
 # License
@@ -268,9 +282,11 @@ If you build your own version of STERN OS, feel free to share your build and mod
 
 # Support the Project
 
-If you find this project interesting, consider giving the repository a on GitHub.
+If you find this project interesting, consider giving the repository a star on GitHub.
 It helps the project get discovered by other hardware and cyberdeck enthusiasts.
+
 --------------------------------------------------------------------------------
 
 **STERN OS**
+
 *Pocket computer. Custom hardware. Built from scratch.*
