@@ -2,7 +2,6 @@
 
 ### A DIY Pocket Cyberdeck built inside a Barkleys tin
 
-* **Schematic & PCB (EasyEDA):** https://oshwlab.com/dmitriyshalagurov/project_itafwezn
 * **Build Video:** https://youtu.be/7yzCkS4Cg1M
 * **Build Video (FULL VERSION):** https://youtu.be/xNvaoZqZ404
 
