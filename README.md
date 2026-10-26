@@ -111,8 +111,6 @@ The project uses a specific FPC connector orientation, so the connector type mus
 
 The custom PCB for STERN OS integrates the electronics required by the cyberdeck and is designed around the extremely limited space available inside the Barkleys tin.
 
-PCB production files and source design files will be provided in the `hardware` directory.
-
 ------------------------------------------------------------------------------------------
 
 # Software
